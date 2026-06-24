@@ -13,6 +13,7 @@ import (
 
 	"k8s.io/utils/ptr"
 
+	"github.com/crossplane/upjet/v2/pkg/config"
 	"github.com/crossplane/upjet/v2/pkg/types/comments"
 	"github.com/crossplane/upjet/v2/pkg/types/markers"
 	"github.com/crossplane/upjet/v2/pkg/types/markers/kubebuilder"
@@ -78,6 +79,17 @@ var (
 			},
 		},
 	}
+	// refListMapComment holds the server-side apply markers added to generated
+	// reference slices of set-typed fields so that they are merged as a map
+	// keyed by the reference name instead of being compared positionally.
+	refListMapComment = &comments.Comment{
+		Options: markers.Options{
+			ServerSideApplyOptions: markers.ServerSideApplyOptions{
+				ListType:   ptr.To[config.ListType](config.ListTypeMap),
+				ListMapKey: []string{"name"},
+			},
+		},
+	}
 )
 
 func (g *Builder) generateReferenceFields(t *types.TypeName, f *Field) (fields []*types.Var, tags []string) {
@@ -108,6 +120,14 @@ func (g *Builder) generateReferenceFields(t *types.TypeName, f *Field) (fields [
 			friendlyTypeDescription(f.Reference.Type), f.Name.LowerCamelComputed, commentOptional.Build())
 		selComment = fmt.Sprintf("// Selector for a list of %s to populate %s.\n%s",
 			friendlyTypeDescription(f.Reference.Type), f.Name.LowerCamelComputed, commentOptional.Build())
+		// When the referenced field is a set, its generated reference slice
+		// must be merged as a map keyed by the reference name. Otherwise
+		// server-side apply and GitOps tools (e.g. Argo CD) compare the list
+		// positionally and report spurious drift when the provider reconciles
+		// references in a different order than the manifest.
+		if f.Comment != nil && f.Comment.ServerSideApplyOptions.ListType != nil && *f.Comment.ServerSideApplyOptions.ListType == config.ListTypeSet {
+			refComment += refListMapComment.Build()
+		}
 	}
 	ref := types.NewField(token.NoPos, g.Package, rfn.Camel, tr, false)
 	tsel := types.NewPointer(typeNamespacedSelectorField)

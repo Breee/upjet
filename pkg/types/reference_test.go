@@ -11,8 +11,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	twtypes "github.com/muvaf/typewriter/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/upjet/v2/pkg/config"
+	"github.com/crossplane/upjet/v2/pkg/types/comments"
+	"github.com/crossplane/upjet/v2/pkg/types/markers"
 	"github.com/crossplane/upjet/v2/pkg/types/name"
 )
 
@@ -81,6 +84,39 @@ func TestBuilder_generateReferenceFields(t *testing.T) {
 				},
 				outComments: twtypes.Comments{
 					"github.com/crossplane/upjet/v2/pkg/types.Params:TestFieldRefs":     "// References to testObject to populate testField.\n// +kubebuilder:validation:Optional\n",
+					"github.com/crossplane/upjet/v2/pkg/types.Params:TestFieldSelector": "// Selector for a list of testObject to populate testField.\n// +kubebuilder:validation:Optional\n",
+				},
+			},
+		},
+		"SetTypeSliceGetsListMapMarkers": {
+			args: args{
+				crdScope: CRDScopeCluster,
+				t:        types.NewTypeName(token.NoPos, tp, "Params", types.Universe.Lookup("string").Type()),
+				f: &Field{
+					Name: name.NewFromCamel("TestField"),
+					Reference: &config.Reference{
+						Type: "testObject",
+					},
+					FieldType: types.NewSlice(types.Universe.Lookup("string").Type()),
+					Comment: &comments.Comment{
+						Options: markers.Options{
+							ServerSideApplyOptions: markers.ServerSideApplyOptions{
+								ListType: ptr.To[config.ListType](config.ListTypeSet),
+							},
+						},
+					},
+				},
+			}, want: want{
+				outFields: []*types.Var{
+					types.NewField(token.NoPos, tp, "TestFieldRefs", types.NewSlice(typeReferenceField), false),
+					types.NewField(token.NoPos, tp, "TestFieldSelector", types.NewPointer(typeSelectorField), false),
+				},
+				outTags: []string{
+					`json:"testFieldRefs,omitempty" tf:"-"`,
+					`json:"testFieldSelector,omitempty" tf:"-"`,
+				},
+				outComments: twtypes.Comments{
+					"github.com/crossplane/upjet/v2/pkg/types.Params:TestFieldRefs":     "// References to testObject to populate testField.\n// +kubebuilder:validation:Optional\n// +listType=map\n// +listMapKey=name\n",
 					"github.com/crossplane/upjet/v2/pkg/types.Params:TestFieldSelector": "// Selector for a list of testObject to populate testField.\n// +kubebuilder:validation:Optional\n",
 				},
 			},
