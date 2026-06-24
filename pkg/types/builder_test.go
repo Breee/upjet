@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -751,5 +752,61 @@ func TestBuild(t *testing.T) {
 				t.Fatalf("Build(...): -want validationRules, +got validationRules: %s", diff)
 			}
 		})
+	}
+}
+
+// TestBuildSliceReferenceNullable verifies that a slice-typed field that has a
+// reference, along with its generated <field>Refs slice field, are marked
+// nullable. This is required so that the API server accepts the explicit null
+// produced by the JSON merge patch crossplane-runtime applies when reference
+// resolution clears the field (provider-keycloak#425).
+func TestBuildSliceReferenceNullable(t *testing.T) {
+	cfg := &config.Resource{
+		TerraformResource: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"composite_roles": {
+					Type:     schema.TypeSet,
+					Optional: true,
+					Elem: &schema.Schema{
+						Type: schema.TypeString,
+					},
+				},
+			},
+		},
+		References: map[string]config.Reference{
+			"composite_roles": {
+				Type: "Role",
+			},
+		},
+	}
+
+	builder := NewBuilder(types.NewPackage("example", ""), CRDScopeCluster)
+	g, err := builder.Build(cfg)
+	if err != nil {
+		t.Fatalf("Build(...): unexpected error: %v", err)
+	}
+
+	const nullableMarker = "+kubebuilder:validation:Nullable"
+	wantNullable := map[string]string{
+		"example.Parameters:CompositeRoles":         "forProvider value field",
+		"example.Parameters:CompositeRolesRefs":     "forProvider refs field",
+		"example.InitParameters:CompositeRoles":     "initProvider value field",
+		"example.InitParameters:CompositeRolesRefs": "initProvider refs field",
+	}
+	for key, desc := range wantNullable {
+		c, ok := g.Comments[key]
+		if !ok {
+			t.Fatalf("Build(...): expected a comment for the %s under key %q, comments: %v", desc, key, g.Comments)
+		}
+		if !strings.Contains(c, nullableMarker) {
+			t.Errorf("Build(...): expected the %s comment to contain %q, got: %q", desc, nullableMarker, c)
+		}
+	}
+
+	// The single-valued Selector field must not be marked nullable.
+	if c, ok := g.Comments["example.Parameters:CompositeRolesSelector"]; ok {
+		if strings.Contains(c, nullableMarker) {
+			t.Errorf("Build(...): did not expect the selector comment to contain %q, got: %q", nullableMarker, c)
+		}
 	}
 }

@@ -401,6 +401,18 @@ func (f *Field) AddToResource(g *Builder, r *resource, typeNames *TypeNames, opt
 		r.addReferenceFields(g, typeNames.ParameterTypeName, f, false)
 	}
 
+	// A slice-typed field that has a reference can be cleared during reference
+	// resolution (e.g. when a selector stops matching any resource).
+	// crossplane-runtime applies the resolved managed resource via a JSON merge
+	// patch, which encodes the removal of the now-empty, omitempty field as an
+	// explicit null. The field must therefore be nullable for the API server to
+	// accept the patch.
+	if f.Reference != nil {
+		if _, isSlice := f.FieldType.(*types.Slice); isSlice {
+			f.Comment.KubebuilderOptions.Nullable = ptr.To(true)
+		}
+	}
+
 	// Note(lsviben): All fields are optional because observation fields are
 	// optional by default, and forProvider and initProvider fields should
 	// be checked through CEL rules.

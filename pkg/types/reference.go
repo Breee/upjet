@@ -78,6 +78,19 @@ var (
 			},
 		},
 	}
+	// commentOptionalNullable is used for slice reference fields. These fields
+	// can be cleared during reference resolution, which crossplane-runtime
+	// applies via a JSON merge patch that encodes the removal as an explicit
+	// null. The field must therefore be nullable for the API server to accept
+	// the patch.
+	commentOptionalNullable = &comments.Comment{
+		Options: markers.Options{
+			KubebuilderOptions: kubebuilder.Options{
+				Required: ptr.To(false),
+				Nullable: ptr.To(true),
+			},
+		},
+	}
 )
 
 func (g *Builder) generateReferenceFields(t *types.TypeName, f *Field) (fields []*types.Var, tags []string) {
@@ -105,7 +118,7 @@ func (g *Builder) generateReferenceFields(t *types.TypeName, f *Field) (fields [
 			tr = types.NewSlice(typeReferenceField)
 		}
 		refComment = fmt.Sprintf("// References to %s to populate %s.\n%s",
-			friendlyTypeDescription(f.Reference.Type), f.Name.LowerCamelComputed, commentOptional.Build())
+			friendlyTypeDescription(f.Reference.Type), f.Name.LowerCamelComputed, commentOptionalNullable.Build())
 		selComment = fmt.Sprintf("// Selector for a list of %s to populate %s.\n%s",
 			friendlyTypeDescription(f.Reference.Type), f.Name.LowerCamelComputed, commentOptional.Build())
 	}

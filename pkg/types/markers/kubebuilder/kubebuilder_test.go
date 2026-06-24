@@ -22,6 +22,7 @@ func TestOptionsString(t *testing.T) {
 		minimum    *int
 		maximum    *int
 		defaultVal *string
+		nullable   *bool
 	}
 	type want struct {
 		out string
@@ -68,6 +69,25 @@ func TestOptionsString(t *testing.T) {
 `,
 			},
 		},
+		"OptionalNullable": {
+			args: args{
+				required: &optional,
+				nullable: &required,
+			},
+			want: want{
+				out: `+kubebuilder:validation:Optional
++kubebuilder:validation:Nullable
+`,
+			},
+		},
+		"NullableFalseOmitted": {
+			args: args{
+				nullable: &optional,
+			},
+			want: want{
+				out: "",
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -76,6 +96,7 @@ func TestOptionsString(t *testing.T) {
 				Minimum:  tc.minimum,
 				Maximum:  tc.maximum,
 				Default:  tc.defaultVal,
+				Nullable: tc.nullable,
 			}
 			got := o.String()
 			if diff := cmp.Diff(tc.want.out, got); diff != "" {
