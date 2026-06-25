@@ -786,7 +786,7 @@ func TestBuildSliceReferenceNullable(t *testing.T) {
 		t.Fatalf("Build(...): unexpected error: %v", err)
 	}
 
-	const nullableMarker = "+kubebuilder:validation:Nullable"
+	const nullableMarker = "+nullable"
 	wantNullable := map[string]string{
 		"example.Parameters:CompositeRoles":         "forProvider value field",
 		"example.Parameters:CompositeRolesRefs":     "forProvider refs field",

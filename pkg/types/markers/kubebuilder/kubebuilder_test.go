@@ -76,7 +76,7 @@ func TestOptionsString(t *testing.T) {
 			},
 			want: want{
 				out: `+kubebuilder:validation:Optional
-+kubebuilder:validation:Nullable
++nullable
 `,
 			},
 		},
