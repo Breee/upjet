@@ -31,6 +31,12 @@ type Options struct {
 	// marker. Please note that you will need to include the quotes when setting
 	// Default as needed, e.g., `"10"`.
 	Default *string
+	// Nullable generates the
+	// +nullable
+	// marker when set to true. This allows the field to be explicitly set to
+	// null, which is required for fields that may be cleared via a JSON merge
+	// patch (e.g. slice reference fields cleared during reference resolution).
+	Nullable *bool
 }
 
 func (o *Options) setFrom(opt *Options) {
@@ -45,6 +51,9 @@ func (o *Options) setFrom(opt *Options) {
 	}
 	if opt.Default != nil {
 		o.Default = ptr.To(*opt.Default)
+	}
+	if opt.Nullable != nil {
+		o.Nullable = ptr.To(*opt.Nullable)
 	}
 }
 
@@ -82,6 +91,9 @@ func (o *Options) String() string {
 	}
 	if o.Default != nil {
 		m += fmt.Sprintf("+kubebuilder:default:=%s\n", *o.Default)
+	}
+	if o.Nullable != nil && *o.Nullable {
+		m += "+nullable\n"
 	}
 
 	return m
